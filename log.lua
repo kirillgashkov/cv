@@ -1,6 +1,6 @@
 M = {}
 
----@param source string
+---@param source? string
 ---@param type "error" | "warning" | "note"
 ---@param message string
 ---@param code? string|nil
@@ -24,7 +24,13 @@ function M.log(source, type, message, code, format)
 		assert(false)
 	end
 
-	local m = source .. ": " .. type_color .. type .. ": " .. reset_color .. message
+	local m
+	if source ~= nil then
+		m = source .. ": "
+	else
+		m = "<unknown>: "
+	end
+	m = m .. type_color .. type .. ": " .. reset_color .. message
 	if code ~= nil then
 		m = m .. " " .. code_color .. "[" .. code .. "]" .. reset_color .. "\n"
 	end
@@ -33,7 +39,7 @@ function M.log(source, type, message, code, format)
 	io.stderr:write(m)
 end
 
----@param source string
+---@param source? string
 ---@param message string
 ---@param code? string|nil
 ---@param format? "text"|"json"
@@ -41,7 +47,7 @@ function M.error(source, message, code, format)
 	M.log(source, "error", message, code, format)
 end
 
----@param source string
+---@param source? string
 ---@param message string
 ---@param code? string|nil
 ---@param format? "text"|"json"
@@ -49,7 +55,7 @@ function M.warning(source, message, code, format)
 	M.log(source, "warning", message, code, format)
 end
 
----@param source string
+---@param source? string
 ---@param message string
 ---@param code? string|nil
 ---@param format? "text"|"json"
