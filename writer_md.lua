@@ -103,6 +103,16 @@ function Writer(_doc, opts)
 		},
 	}
 
+	-- NOTE: Div and Span objects are used here to embed a list of Blocks or Inlines in the output.
+	-- An alternative solution of using table.unpack was considered but it seems that it isn't suited
+	-- for this case. It behaves differently from python's "...array". There is a different solution
+	-- of imperatively appending elements to a table but it seems that it is more verbose and less
+	-- readable.
+
+	-- NOTE: Div and Span objects are later stripped from the document by the walk function. If you
+	-- use need your own divs and spans, consider marking groupings with a class like ".internal" and
+	-- strip only those.
+
 	local doc = pandoc.Pandoc(pandoc.Blocks({
 		pandoc.Header(1, md_inlines(cv.name)),
 		pandoc.Header(2, md_inlines(cv.role)),
