@@ -10,11 +10,14 @@ filter.Table = function(table_)
 	return table_
 end
 
----@param doc Pandoc
----@param opts WriterOptions
+---@param _doc Pandoc
+---@param _opts WriterOptions
 ---@return string
-function Writer(doc, opts)
-	return pandoc.write(doc:walk(filter), "gfm", opts)
+function Writer(_doc, _opts)
+	local doc = pandoc.Pandoc(pandoc.Blocks({
+		pandoc.Header(1, pandoc.Str("Title")),
+	}))
+	return pandoc.write(doc, "gfm")
 end
 
 ---@return string
