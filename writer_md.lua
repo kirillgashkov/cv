@@ -72,9 +72,8 @@ end
 ---@return string
 function Writer(_doc, opts)
 	---@type Cv
-	local cv = pandoc.json.decode(
-		file.read_file(pandoc.path.join({ pandoc.path.directory(PANDOC_SCRIPT_FILE), "example.json" }))
-	)
+	local cv =
+		pandoc.json.decode(file.Read(pandoc.path.join({ pandoc.path.directory(PANDOC_SCRIPT_FILE), "example.json" })))
 	local config = {
 		profile_header = "Profile",
 		skills_header = "Skills",
@@ -182,7 +181,7 @@ end
 
 ---@return string
 function Template()
-	local template = file.read_file(pandoc.path.join({ pandoc.path.directory(PANDOC_SCRIPT_FILE), "template.md" }))
+	local template = file.Read(pandoc.path.join({ pandoc.path.directory(PANDOC_SCRIPT_FILE), "template.md" }))
 	assert(template, "Failed to read template file")
 	return template
 end

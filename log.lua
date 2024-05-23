@@ -1,66 +1,87 @@
-M = {}
+local log = {}
 
----@param source? string
----@param type "error" | "warning" | "note"
+---@type "text"|"json"
+log.Format = "text"
+
+---@param type "panic" | "error" | "warning" | "note"
 ---@param message string
+---@param source? string
 ---@param code? string|nil
----@param format? "text"|"json"
-function M.log(source, type, message, code, format)
-	if format == "json" then
-		io.stderr:write(pandoc.json.encode({ source = source, type = type, message = message, code = code }) .. "\n")
-		return
-	end
+local function makeTextLog(type, message, source, code)
+	local s = ""
 
-	local reset_color = "\27[0m"
-	local code_color = "\27[35m"
-	local type_color
+	local resetColor = "\27[0m"
+	local codeColor = "\27[35m"
+	local typeColor
 	if type == "note" then
-		type_color = "\27[34m\27[1m"
+		typeColor = "\27[34m\27[1m"
 	elseif type == "warning" then
-		type_color = "\27[33m\27[1m"
+		typeColor = "\27[33m\27[1m"
 	elseif type == "error" then
-		type_color = "\27[31m\27[1m"
+		typeColor = "\27[31m\27[1m"
 	else
 		assert(false)
 	end
 
-	local m
 	if source ~= nil then
-		m = source .. ": "
+		s = source .. ": "
 	else
-		m = "<unknown>: "
+		s = "<unknown>: "
 	end
-	m = m .. type_color .. type .. ": " .. reset_color .. message
+	s = s .. typeColor .. type .. ": " .. resetColor .. message
 	if code ~= nil then
-		m = m .. " " .. code_color .. "[" .. code .. "]" .. reset_color .. "\n"
+		s = s .. " " .. codeColor .. "[" .. code .. "]" .. resetColor .. "\n"
 	end
-	m = m .. "\n"
 
-	io.stderr:write(m)
+	return s
 end
 
----@param source? string
+---@param type "panic" | "error" | "warning" | "note"
 ---@param message string
+---@param source? string|nil
 ---@param code? string|nil
----@param format? "text"|"json"
-function M.error(source, message, code, format)
-	M.log(source, "error", message, code, format)
+local function makeJsonLog(type, message, source, code)
+	local d = { type = type, message = message, code = code, source = source }
+	return pandoc.json.encode(d)
 end
 
----@param source? string
+---@param type "panic" | "error" | "warning" | "note"
 ---@param message string
----@param code? string|nil
----@param format? "text"|"json"
-function M.warning(source, message, code, format)
-	M.log(source, "warning", message, code, format)
-end
-
 ---@param source? string
----@param message string
 ---@param code? string|nil
----@param format? "text"|"json"
-function M.note(source, message, code, format)
-	M.log(source, "note", message, code, format)
+function log.message(type, message, source, code)
+	local s = ""
+
+	if log.Format == "text" then
+		s = makeTextLog(type, message, source, code)
+	elseif log.Format == "json" then
+		s = makeJsonLog(type, message, source, code)
+	else
+		assert(false)
+	end
+
+	io.stderr:write(s .. "\n")
 end
 
-return M
+---@param message string
+---@param source? string|nil
+---@param code? string|nil
+function log.Error(message, source, code)
+	log.message("error", message, source, code)
+end
+
+---@param message string
+---@param source? string|nil
+---@param code? string|nil
+function log.Warning(message, source, code)
+	log.message("warning", message, source, code)
+end
+
+---@param message string
+---@param source? string|nil
+---@param code? string|nil
+function log.Note(message, source, code)
+	log.message("note", message, source, code)
+end
+
+return log
