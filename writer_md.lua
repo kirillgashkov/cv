@@ -1,64 +1,64 @@
-assert(tostring(PANDOC_API_VERSION) == "1.23.1", "Unsupported Pandoc API")
-
 local file = require("file")
 local log = require("log")
 
+assert(tostring(PANDOC_API_VERSION) == "1.23.1", "Unsupported Pandoc API")
+
 ---@param s string
 ---@return Inlines
-local function md_inlines(s)
+local function parseInlineMarkdown(s)
 	return pandoc.utils.blocks_to_inlines(pandoc.read(s, "gfm").blocks)
 end
 
 ---@param s string
 ---@return Blocks
-local function md_blocks(s)
+local function parseBlockMarkdown(s)
 	return pandoc.read(s, "gfm").blocks
 end
 
-local function format_date(year, month, day, format_string, config)
-	return format_string
+local function formatDate(year, month, day, formatString, config)
+	return formatString
 		:gsub("%%B", tostring(config.date_months[month]))
 		:gsub("%%e", tostring(day))
 		:gsub("%%Y", tostring(year))
 end
 
----@param date_string string # Examples: 2020, 2020-01, 2020-01-01
+---@param dateString string # Examples: 2020, 2020-01, 2020-01-01
 ---@param config any
-local function make_date(date_string, config)
+local function makeDate(dateString, config)
 	local year = nil
 	local month = nil
 	local day = nil
-	if #date_string == 4 then
-		year = date_string:match("(%d%d%d%d)")
+	if #dateString == 4 then
+		year = dateString:match("(%d%d%d%d)")
 		year = tonumber(year)
-	elseif #date_string == 7 then
-		year, month = date_string:match("(%d%d%d%d)%-(%d%d)")
+	elseif #dateString == 7 then
+		year, month = dateString:match("(%d%d%d%d)%-(%d%d)")
 		year, month = tonumber(year), tonumber(month)
-	elseif #date_string == 10 then
-		year, month, day = date_string:match("(%d%d%d%d)%-(%d%d)%-(%d%d)")
+	elseif #dateString == 10 then
+		year, month, day = dateString:match("(%d%d%d%d)%-(%d%d)%-(%d%d)")
 		year, month, day = tonumber(year), tonumber(month), tonumber(day)
 	else
 		assert(false)
 	end
 
 	if year ~= nil and month ~= nil and day ~= nil then
-		return format_date(year, month, day, config.date_formats.year_month_day, config)
+		return formatDate(year, month, day, config.date_formats.year_month_day, config)
 	elseif year ~= nil and month ~= nil then
-		return format_date(year, month, nil, config.date_formats.year_month, config)
+		return formatDate(year, month, nil, config.date_formats.year_month, config)
 	elseif year ~= nil then
-		return format_date(year, nil, nil, config.date_formats.year, config)
+		return formatDate(year, nil, nil, config.date_formats.year, config)
 	else
 		assert(false)
 	end
 end
 
----@param start_date_string string
----@param end_date_string? string
+---@param startDateString string
+---@param endDateString? string
 ---@param config any
 ---@return string
-local function make_date_range(start_date_string, end_date_string, config)
-	local start_date = make_date(start_date_string, config)
-	local end_date = end_date_string and make_date(end_date_string, config) or config.date_present
+local function makeDateRange(startDateString, endDateString, config)
+	local start_date = makeDate(startDateString, config)
+	local end_date = endDateString and makeDate(endDateString, config) or config.date_present
 
 	if start_date == end_date then
 		return start_date
@@ -67,10 +67,10 @@ local function make_date_range(start_date_string, end_date_string, config)
 	end
 end
 
----@param _doc Pandoc
+---@param doc Pandoc
 ---@param opts WriterOptions
 ---@return string
-function Writer(_doc, opts)
+function Writer(doc, opts)
 	---@type Cv
 	local cv =
 		pandoc.json.decode(file.Read(pandoc.path.join({ pandoc.path.directory(PANDOC_SCRIPT_FILE), "example.json" })))
@@ -112,52 +112,58 @@ function Writer(_doc, opts)
 	-- use need your own divs and spans, consider marking groupings with a class like ".internal" and
 	-- strip only those.
 
-	local doc = pandoc.Pandoc(pandoc.Blocks({
-		pandoc.Header(1, md_inlines(cv.name)),
-		pandoc.Header(2, md_inlines(cv.role)),
+	doc = pandoc.Pandoc(pandoc.Blocks({
+		pandoc.Header(1, parseInlineMarkdown(cv.name)),
+		pandoc.Header(2, parseInlineMarkdown(cv.role)),
 		pandoc.BulletList(cv.contacts:map(function(contact)
 			return pandoc.Plain({
-				pandoc.Span(md_inlines(contact.name)),
+				pandoc.Span(parseInlineMarkdown(contact.name)),
 				pandoc.Str(": "),
-				pandoc.Span(md_inlines(contact.description)),
+				pandoc.Span(parseInlineMarkdown(contact.description)),
 			})
 		end)),
-		pandoc.Header(3, md_inlines(config.profile_header)),
-		pandoc.Div(md_blocks(cv.profile)),
-		pandoc.Header(3, md_inlines(config.skills_header)),
+		pandoc.Header(3, parseInlineMarkdown(config.profile_header)),
+		pandoc.Div(parseBlockMarkdown(cv.profile)),
+		pandoc.Header(3, parseInlineMarkdown(config.skills_header)),
 		pandoc.BulletList(cv.skills:map(function(skill)
 			return pandoc.Plain({
-				pandoc.Strong({ pandoc.Span(md_inlines(skill.name)), pandoc.Str(":") }),
+				pandoc.Strong({ pandoc.Span(parseInlineMarkdown(skill.name)), pandoc.Str(":") }),
 				pandoc.Str(" "),
-				pandoc.Span(md_inlines(skill.description)),
+				pandoc.Span(parseInlineMarkdown(skill.description)),
 			})
 		end)),
-		pandoc.Header(3, md_inlines(config.projects_header)),
+		pandoc.Header(3, parseInlineMarkdown(config.projects_header)),
 		pandoc.Div(cv.projects:map(function(project)
 			return pandoc.Div({
-				pandoc.Header(4, md_inlines(project.name)),
-				pandoc.Header(6, md_inlines(make_date_range(project.started_in, project.finished_in, config))),
-				pandoc.Div(md_blocks(project.description)),
+				pandoc.Header(4, parseInlineMarkdown(project.name)),
+				pandoc.Header(6, parseInlineMarkdown(makeDateRange(project.started_in, project.finished_in, config))),
+				pandoc.Div(parseBlockMarkdown(project.description)),
 			})
 		end)),
-		pandoc.Header(3, md_inlines(config.education_header)),
+		pandoc.Header(3, parseInlineMarkdown(config.education_header)),
 		pandoc.Div(cv.education:map(function(x)
 			return pandoc.Div({
-				pandoc.Header(4, md_inlines(x.name)),
-				pandoc.Header(6, md_inlines(make_date_range(x.started_in, x.finished_in, config))),
-				(x.organization ~= nil and pandoc.Header(6, md_inlines(x.organization)) or pandoc.Div({})),
-				(x.suborganization ~= nil and pandoc.Header(6, md_inlines(x.suborganization)) or pandoc.Div({})),
-				pandoc.Div(md_blocks(x.description)),
+				pandoc.Header(4, parseInlineMarkdown(x.name)),
+				pandoc.Header(6, parseInlineMarkdown(makeDateRange(x.started_in, x.finished_in, config))),
+				(x.organization ~= nil and pandoc.Header(6, parseInlineMarkdown(x.organization)) or pandoc.Div({})),
+				(
+					x.suborganization ~= nil and pandoc.Header(6, parseInlineMarkdown(x.suborganization))
+					or pandoc.Div({})
+				),
+				pandoc.Div(parseBlockMarkdown(x.description)),
 			})
 		end)),
-		pandoc.Header(3, md_inlines(config.experience_header)),
+		pandoc.Header(3, parseInlineMarkdown(config.experience_header)),
 		pandoc.Div(cv.experience:map(function(x)
 			return pandoc.Div({
-				pandoc.Header(4, md_inlines(x.name)),
-				pandoc.Header(6, md_inlines(make_date_range(x.started_in, x.finished_in, config))),
-				(x.organization ~= nil and pandoc.Header(6, md_inlines(x.organization)) or pandoc.Div({})),
-				(x.suborganization ~= nil and pandoc.Header(6, md_inlines(x.suborganization)) or pandoc.Div({})),
-				pandoc.Div(md_blocks(x.description)),
+				pandoc.Header(4, parseInlineMarkdown(x.name)),
+				pandoc.Header(6, parseInlineMarkdown(makeDateRange(x.started_in, x.finished_in, config))),
+				(x.organization ~= nil and pandoc.Header(6, parseInlineMarkdown(x.organization)) or pandoc.Div({})),
+				(
+					x.suborganization ~= nil and pandoc.Header(6, parseInlineMarkdown(x.suborganization))
+					or pandoc.Div({})
+				),
+				pandoc.Div(parseBlockMarkdown(x.description)),
 			})
 		end)),
 	}))
