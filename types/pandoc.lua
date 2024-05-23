@@ -28,24 +28,24 @@ local List = {}
 ---@param self List<T>
 ---@param list List<T>
 ---@return List<T>
-function List.__concat(self, list) end
+function List:__concat(list) end
 ---Known as List:__eq(a, b).
 ---@generic T
 ---@param self List<T>
 ---@param a List<T>
 ---@param b List<T>
 ---@return boolean
-function List.__eq(self, a, b) end
+function List:__eq(a, b) end
 ---Known as List:clone(). Shallow copy. walk can be used to get a deep copy.
 ---@generic T
 ---@param self List<T>
 ---@return List<T>
-function List.clone(self) end
+function List:clone() end
 ---Known as List:extend(list).
 ---@generic T
 ---@param self List<T>
 ---@param list List<T>
-function List.extend(self, list) end
+function List:extend(list) end
 ---Known as List:find(needle, init). Returns first item equal to the needle, or nil if no such item
 ---exists.
 ---@generic T
@@ -53,7 +53,7 @@ function List.extend(self, list) end
 ---@param value T
 ---@param start_at integer
 ---@return any|nil
-function List.find(self, value, start_at) end
+function List:find(value, start_at) end
 ---Known as List:find_if(pred, init). Returns first item for which `test` succeeds, or nil if no
 ---such item exists.
 ---@generic T
@@ -61,20 +61,20 @@ function List.find(self, value, start_at) end
 ---@param predicate function
 ---@param start_at integer
 ---@return any|nil
-function List.find_if(self, predicate, start_at) end
+function List:find_if(predicate, start_at) end
 ---Known as List:filter(pred).
 ---@generic T
 ---@param self List<T>
 ---@param predicate function
 ---@return List<T>
-function List.filter(self, predicate) end
+function List:filter(predicate) end
 ---Known as List:includes(needle, init). Checks if the list has an item equal to the given needle.
 ---@generic T
 ---@param self List<T>
 ---@param value T
 ---@param start_at integer
 ---@return boolean
-function List.includes(self, value, start_at) end
+function List:includes(value, start_at) end
 ---Known as List:insert([pos], value). Inserts element value at position pos in list, shifting
 ---elements to the next-greater index if necessary.
 ---@generic T
@@ -82,30 +82,30 @@ function List.includes(self, value, start_at) end
 ---@param index integer
 ---@param value T
 ---@overload fun(self: List, value: any)
-function List.insert(self, index, value) end
+function List:insert(index, value) end
 ---Known as List:map(fn).
 ---@generic T
 ---@param self List<T>
 ---@param fn function
 ---@return List<T>
-function List.map(self, fn) end
+function List:map(fn) end
 ---Known as List:new(table).
 ---@generic T
 ---@param self List<T>
 ---@param table_? T[]
 ---@return List<T>
-function List.new(self, table_) end
+function List:new(table_) end
 ---Known as List:remove(pos).
 ---@generic T
 ---@param self List<T>
 ---@param index? integer # The default is the index of the last element.
 ---@return T
-function List.remove(self, index) end
+function List:remove(index) end
 ---Known as List:sort(comp).
 ---@generic T
 ---@param self List<T>
 ---@param comparator function # Receives two arguments and returns a boolean.
-function List.sort(self, comparator) end
+function List:sort(comparator) end
 
 ---@generic T
 ---@param table_? T[]
