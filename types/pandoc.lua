@@ -348,7 +348,7 @@ function Inline:clone() end
 
 ---List of key/value pairs. Values can be accessed by using keys as indices to the list table.
 ---Attributes values are equal in Lua if and only if they are equal in Haskell.
----@alias Attributes table
+---@alias Attributes table<string, string>
 
 ---Column alignment and width specification for a single table column. This is a pair, i.e., a
 ---plain table, with the following components: 1) cell alignment, 2) table column width, as a
