@@ -1,4 +1,22 @@
-\documentclass[14pt]{extarticle}
+\documentclass[11pt]{article}
+
+
+%
+% I18n
+%
+
+
+
+% Multiple languages can be specified as a comma-separated list, the last one
+% being the main. Example: "english,russian".
+\usepackage[
+  shorthands=off,
+  $if(template.i18n.language)$
+    $template.i18n.language$
+  $else$
+    english
+  $endif$
+]{babel}
 
 
 %
@@ -8,7 +26,7 @@
 
 \usepackage{geometry}
 \geometry{paper=a4paper}
-\geometry{left=3cm,right=1cm,top=2cm,bottom=2cm}
+\geometry{left=2cm,right=2cm,top=2cm,bottom=2cm}
 
 
 %
@@ -17,48 +35,26 @@
 
 
 \usepackage{fontspec}
-% Times New Roman-like font.
-\setmainfont{XITS}
-% Courier New-like font.
-\setmonofont{FreeMono}
 
+% Computer Modern.
+\setmainfont{CMU Serif}
 
-% Defines \uline for underline and \sout for strikeout.
+% Provides \uline for underline and \sout for strikeout.
 \usepackage[normalem]{ulem}
 
 
-%
-% Localization
-%
-
-
-\usepackage[shorthands=off,english,russian]{babel}
-\makeatletter
-% The letters I, O are skipped (see "ГОСТ Р 2.105-2019" p. 6.3.5).
-\def\@alph#1{\ifcase#1\or a\or b\or c\or d\or e\or f\or g\or h\or j\or k\or l\or m\or n\or p\or q\or r\or s\or t\or u\or v\or w\or x\or y\or z\else\@ctrerr\fi}
-\def\@Alph#1{\ifcase#1\or A\or B\or C\or D\or E\or F\or G\or H\or J\or K\or L\or M\or N\or P\or Q\or R\or S\or T\or U\or V\or W\or X\or Y\or Z\else\@ctrerr\fi}
-% The letters Ё, З, Й, О, Ч, Ъ, Ы, Ь are skipped (see "ГОСТ Р 2.105-2019" p. 6.3.5).
-\def\russian@alph#1{\ifcase#1\or а\or б\or в\or г\or д\or е\or ж\or и\or к\or л\or м\or н\or п\or р\or с\or т\or у\or ф\or х\or ц\or ш\or щ\or э\or ю\or я\else\@ctrerr\fi}
-\def\russian@Alph#1{\ifcase#1\or А\or Б\or В\or Г\or Д\or Е\or Ж\or И\or К\or Л\or М\or Н\or П\or Р\or С\or Т\or У\or Ф\or Х\or Ц\or Ш\or Щ\or Э\or Ю\or Я\else\@ctrerr\fi}
-\makeatother
-
-
+% Provides \enquote for language-aware quoting. Depends on babel.
 \usepackage{csquotes}
+
+
+% Provides \href for linking. hidelinks option removes borders around links. See
+% https://tex.stackexchange.com/questions/823/remove-ugly-borders-around-clickable-cross-references-and-hyperlinks.
+\usepackage[hidelinks]{hyperref}
 
 
 %
 % Paragraph
 %
-
-
-% Sets the first line indent of a paragraph.
-\usepackage{indentfirst}
-\setlength\parindent{1.25cm}
-
-
-
-% Sets the line spacing to Microsoft Word's 1.5.
-\linespread{1.424}
 
 
 % Justifies the text.
@@ -94,7 +90,7 @@
 \makeatother
 
 \makeatletter
-\template@hyphenation@enable
+\template@hyphenation@disable
 \makeatother
 
 
@@ -103,106 +99,69 @@
 %
 
 
-\usepackage{titlesec}
-\usepackage[titletoc]{appendix}
-
-% See <https://tex.stackexchange.com/questions/11668/adding-unnumbered-sections-to-toc>.
-$if(template__header__default__is_numbered)$
-$else$
+% Removes section numbering.
 \setcounter{secnumdepth}{0}
-$endif$
-
-\makeatletter
-$if(template__header__default__is_centered)$
-\newcommand{\template@header@default@internal@align}{\filcenter}
-\newcommand{\template@header@main@internal@margin@left}{0pt}
-$else$
-\newcommand{\template@header@default@internal@align}{\filright}
-\newcommand{\template@header@main@internal@margin@left}{\parindent}
-$endif$
-\makeatother
 
 
-% Main header
-
-\makeatletter
-\newenvironment{template@header@main}{%
-  \titleformat{\section}[block]{\template@header@default@internal@align\bfseries\Large}{\thesection}{0.5em}{}%
-  \titlespacing{\section}{\template@header@main@internal@margin@left}{3ex}{2ex}%
-  \titleformat{\subsection}[block]{\template@header@default@internal@align\bfseries\large}{\thesubsection}{0.5em}{}%
-  \titlespacing{\subsection}{\template@header@main@internal@margin@left}{3ex}{2ex}%
-  \titleformat{\subsubsection}[block]{\template@header@default@internal@align\bfseries\normalsize}{\thesubsubsection}{0.5em}{}%
-  \titlespacing{\subsubsection}{\template@header@main@internal@margin@left}{3ex}{2ex}%
-}{}
-\makeatother
-
-
-% Side header (introduction, conclusion, references, etc.)
-
-\makeatletter
-\newenvironment{template@header@side}{%
-  \titleformat{\section}[block]{\filcenter\bfseries\Large}{\thesection}{0.5em}{}%
-  \titlespacing{\section}{0pt}{3ex}{2ex}%
-  \titleformat{\subsection}[block]{\filcenter\bfseries\large}{\thesubsection}{0.5em}{}%
-  \titlespacing{\subsection}{0pt}{3ex}{2ex}%
-  \titleformat{\subsubsection}[block]{\filcenter\bfseries\normalsize}{\thesubsubsection}{0.5em}{}%
-  \titlespacing{\subsubsection}{0pt}{3ex}{2ex}%
-}{}
-\makeatother
-
-
-% ToC header
-
-% Defines the environment for the ToC header to look and behave like the side header but be hidden
-% from the ToC. See <https://stackoverflow.com/q/2785260>.
-\makeatletter
-\newcommand{\template@header@toc@internal@addcontentsline}[3]{}
-\newenvironment{template@header@toc}{%
-  \let\addcontentsline=\template@header@toc@internal@addcontentsline%  
-  \template@header@side%
-}{%
-  \endtemplate@header@side%
-}
-\makeatother
-
-
-% Appendix header
-
-\makeatletter
-$if(template__header___appendix__is_uppercase)$
-\newcommand{\template@header@appendix@internal@appendixname}{Приложение}
-$else$
-\newcommand{\template@header@appendix@internal@appendixname}{ПРИЛОЖЕНИЕ}
-$endif$
-\makeatother
-
-% \appendixname (likely) should be redefined after \appendices in order to take effect. See
-% <https://mirror.truenetwork.ru/CTAN/macros/latex/contrib/appendix/appendix.pdf>.
-\newenvironment{template@header@appendix}{%
-  \appendices%
-  \renewcommand{\appendixname}{\template@header@appendix@internal@appendixname}%
-  \renewcommand{\thesection}{\Asbuk{section}}%
-  %
-  \titleformat{\section}[display]{\filcenter\bfseries\Large}{\appendixname~\thesection}{2ex}{\vspace{-0.5\baselineskip}}%
-  \titlespacing{\section}{0pt}{3ex}{2ex}%
-  \titleformat{\subsection}[block]{\template@header@default@internal@align\bfseries\large}{\thesubsection}{0.5em}{}%
-  \titlespacing{\subsection}{\template@header@appendix@internal@margin@left}{3ex}{2ex}%
-  \titleformat{\subsubsection}[block]{\template@header@default@internal@align\bfseries\normalsize}{\thesubsubsection}{0.5em}{}%
-  \titlespacing{\subsubsection}{\template@header@appendix@internal@margin@left}{3ex}{2ex}%
-}{}
-\makeatother
+\usepackage{titlesec}
+\titleformat{\section}[block]{\filright\scshape\large}{\thesection}{0.5em}{}[\titlerule]
+\titlespacing{\section}{0pt}{3ex}{2ex}
 
 
 %
-% Table
+% List
 %
 
 
-% https://www.overleaf.com/learn/latex/Tables
-% \usepackage{array} % Tables with a fixed width
-\usepackage{longtable}
+% \usepackage{enumitem}
+%
+%
+% % Set common settings for all lists
+% \setlist{labelindent=\parindent,leftmargin=*,listparindent=\parindent,topsep=0pt,partopsep=0pt,parsep=\parskip,itemsep=0pt}
+%
+% % Set additional settings for unordered lists
+% \setlist[itemize]{label={--}}
+%
+% % Set additional settings for ordered lists
+% \setlist[enumerate,1]{label={\arabic*)}}
+% \setlist[enumerate,2]{label={\asbuk*)}}
+% \setlist[enumerate,3]{label={\arabic*)}}
+% \setlist[enumerate,4]{label={\asbuk*)}}
+
+% Provide the "\tightlist" command for Pandoc. I made it do nothing because
+% I needed all lists to look the same when Pandoc used this command to have
+% two different styles of lists (loose and tight)
+\newcommand{\tightlist}{}
+
+
+%
+% Math
+%
+
+
+% Provides macros for typesetting math. The packages were chosen to emulate
+% KaTeX. See https://github.com/KaTeX/KaTeX/wiki/Package-Emulation.
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
+
+% Provides support for Unicode math fonts.
+\usepackage{unicode-math}
+
+\setmathfont{Latin Modern Math}
+
+
+%
+% Other
+%
+
+
+\usepackage[skip=0.5em,indent=0pt]{parskip}
 
 
 \begin{document}
+
 $body$
+
 \end{document}
