@@ -12,16 +12,32 @@ local function getSource(attr)
 	return attr.attributes["data-pos"]
 end
 
----@param s string
----@return Inlines
-local function fromMd(s)
-	return pandoc.utils.blocks_to_inlines(pandoc.read(s, mdFormat).blocks)
+---@param inlines Inlines
+---@return Inline
+local function merge(inlines)
+	local i = pandoc.Span(inlines)
+	i.attr.attributes["data-template--is-merge"] = "1"
+	return i
+end
+
+---@param blocks Blocks
+---@return Block
+local function mergeBlock(blocks)
+	local b = pandoc.Div(blocks)
+	b.attr.attributes["data-template--is-merge"] = "1"
+	return b
 end
 
 ---@param s string
----@return Blocks
-local function parseBlockMarkdown(s)
-	return pandoc.read(s, mdFormat).blocks
+---@return Inline
+local function md(s)
+	return merge(pandoc.utils.blocks_to_inlines(pandoc.read(s, mdFormat).blocks))
+end
+
+---@param s string
+---@return Block
+local function mdBlock(s)
+	return mergeBlock(pandoc.read(s, mdFormat).blocks)
 end
 
 local function formatDate(year, month, day, formatString, config)
@@ -77,30 +93,21 @@ local function makeDateRange(startDateString, endDateString, config)
 end
 
 ---@param s string
----@return Inlines
-local function toTex(s)
-	return pandoc.Inlines({ pandoc.RawInline("latex", s) })
+---@return Inline
+local function raw(s)
+	return merge(pandoc.Inlines({ pandoc.RawInline("latex", s) }))
 end
 
 ---@param name string
 ---@param role string
 ---@param contacts List<Contact>
----@return Blocks
-local function makeHeaderLatex(name, role, contacts)
-	local nameAndRoleLatex = pandoc.Plain(fun.Flatten(fun.Flatten({
-		{ toTex([[{]]), toTex("\n") },
-		{ toTex([[  \centering]]), toTex("\n") },
-		{ toTex([[  {\bfseries\scshape\Huge ]]), fromMd(name), toTex([[}\par]]), toTex("\n") },
-		{ toTex([[  \vspace{0.125em}]]), toTex("\n") },
-		{ toTex([[  {\scshape\Large ]]), fromMd(role), toTex([[}\par]]), toTex("\n") },
-		{ toTex([[  \par]]), toTex("\n") },
-		{ toTex([[}]]), toTex("\n") },
-	})))
-
+---@return Block
+local function headerBlock(name, role, contacts)
 	local contactsTableBodyLatex = (function()
 		local colCount = 2
 		local rowCount = math.ceil(#contacts / colCount)
 
+		---@type List<List<Inline>>
 		local t = pandoc.List({})
 		for _ = 1, rowCount do
 			local r = pandoc.List({})
@@ -116,39 +123,47 @@ local function makeHeaderLatex(name, role, contacts)
 			-- in the column-major order.
 			local ri = ((i - 1) % rowCount) + 1
 			local ci = ((i - 1) // rowCount) + 1
-			t[ri][ci] = fun.Flatten({
-				fromMd(contact.name),
-				fromMd(":"),
-				toTex([[ ]]),
-				toTex([[\texttt]]),
-				toTex([[{]]),
-				fromMd(contact.description),
-				toTex([[}]]),
-			})
+			t[ri][ci] = merge(fun.Flatten({
+				{ md(contact.name), md(":") },
+				{ raw([[ ]]) },
+				{ raw([[\texttt]]), raw([[{]]), md(contact.description), raw([[}]]) },
+			}))
 		end
 
-		return fun.Flatten({
-			{ toTex("    ") },
-			fun.Flatten(fun.Intersperse(
+		return merge({
+			raw([[    ]]),
+			merge(fun.Intersperse(
 				t:map(function(r)
-					return fun.Intersperse(r, toTex([[ & ]]))
+					return merge(fun.Intersperse(r, raw([[ & ]])))
 				end),
-				{ toTex([[ \\]]), toTex("\n    ") }
+				merge({ raw([[ \\]]), raw("\n"), raw([[    ]]) })
 			)),
-			{ toTex("\n") },
 		})
 	end)()
 
-	local contactsLatex = pandoc.Plain(fun.Flatten(fun.Flatten({
-		{ toTex([[{]]), toTex("\n") },
-		{ toTex([[  \centering]]), toTex("\n") },
-		{ toTex([[  \begin{tabular}{l@{\hspace{2em}}l}]]), toTex("\n") },
-		contactsTableBodyLatex,
-		{ toTex([[  \end{tabular}]]), toTex("\n") },
-		{ toTex([[  \par]]), toTex("\n") },
-		{ toTex([[}]]), toTex("\n") },
-	})))
-	return pandoc.Blocks({ nameAndRoleLatex, pandoc.Plain(toTex([[\vspace{1em}]])), contactsLatex })
+	return mergeBlock({
+		pandoc.Plain(fun.Flatten({
+			{ raw([[{]]), raw("\n") },
+			{ raw([[  \centering]]), raw("\n") },
+			{ raw([[  {\bfseries\scshape\Huge ]]), md(name), raw([[}\par]]), raw("\n") },
+			{ raw([[  \vspace{0.125em}]]), raw("\n") },
+			{ raw([[  {\scshape\Large ]]), md(role), raw([[}\par]]), raw("\n") },
+			{ raw([[  \par]]), raw("\n") },
+			{ raw([[}]]), raw("\n") },
+		})),
+		pandoc.Plain({
+			raw([[\vspace{1em}]]),
+		}),
+		pandoc.Plain(fun.Flatten({
+			{ raw([[{]]), raw("\n") },
+			{ raw([[  \centering]]), raw("\n") },
+			{ raw([[  \begin{tabular}{l@{\hspace{2em}}l}]]), raw("\n") },
+			{ contactsTableBodyLatex, raw("\n") },
+			{ raw([[  \end{tabular}]]), raw("\n") },
+			{ raw([[  \par]]), raw("\n") },
+			{ raw([[}]]), raw("\n") },
+		})),
+	})
 end
 
 ---@param doc Pandoc
@@ -196,20 +211,11 @@ function Writer(doc, opts)
 	-- use need your own divs and spans, consider marking groupings with a class like ".internal" and
 	-- strip only those.
 
-	doc = pandoc.Pandoc(pandoc.Blocks(fun.Flatten({
-		-- pandoc.Header(1, parseInlineMarkdown(cv.name)),
-		-- pandoc.Header(2, parseInlineMarkdown(cv.role)),
-		-- pandoc.BulletList(cv.contacts:map(function(contact)
-		-- 	return pandoc.Plain({
-		-- 		pandoc.Span(parseInlineMarkdown(contact.name)),
-		-- 		pandoc.Str(": "),
-		-- 		pandoc.Span(parseInlineMarkdown(contact.description)),
-		-- 	})
-		-- end)),
-		makeHeaderLatex(cv.name, cv.role, cv.contacts),
-		{ pandoc.Header(1, fromMd(config.profile_header)) },
-		{ pandoc.Div(parseBlockMarkdown(cv.profile)) },
-		{ pandoc.Header(1, fromMd(config.skills_header)) },
+	doc = pandoc.Pandoc({
+		headerBlock(cv.name, cv.role, cv.contacts),
+		pandoc.Header(1, md(config.profile_header)),
+		mdBlock(cv.profile),
+		pandoc.Header(1, md(config.skills_header)),
 		-- pandoc.Div(
 		-- 	pandoc.BulletList(cv.skills:map(function(skill)
 		-- 		return pandoc.Plain({
@@ -220,7 +226,7 @@ function Writer(doc, opts)
 		-- 	end)),
 		-- 	pandoc.Attr(nil, nil, { ["data-template-bullet-list-type"] = "none" })
 		-- ),
-		{ pandoc.Header(1, fromMd(config.projects_header)) },
+		pandoc.Header(1, md(config.projects_header)),
 		-- pandoc.Div(cv.projects:map(function(project)
 		-- 	return pandoc.Div({
 		-- 		pandoc.Header(4, parseInlineMarkdown(project.name)),
@@ -228,7 +234,7 @@ function Writer(doc, opts)
 		-- 		pandoc.Div(parseBlockMarkdown(project.description)),
 		-- 	})
 		-- end)),
-		{ pandoc.Header(1, fromMd(config.education_header)) },
+		pandoc.Header(1, md(config.education_header)),
 		-- pandoc.Div(cv.education:map(function(x)
 		-- 	return pandoc.Div({
 		-- 		pandoc.Header(4, parseInlineMarkdown(x.name)),
@@ -241,7 +247,7 @@ function Writer(doc, opts)
 		-- 		pandoc.Div(parseBlockMarkdown(x.description)),
 		-- 	})
 		-- end)),
-		{ pandoc.Header(1, fromMd(config.experience_header)) },
+		pandoc.Header(1, md(config.experience_header)),
 		-- pandoc.Div(cv.experience:map(function(x)
 		-- 	return pandoc.Div({
 		-- 		pandoc.Header(4, parseInlineMarkdown(x.name)),
@@ -254,7 +260,7 @@ function Writer(doc, opts)
 		-- 		pandoc.Div(parseBlockMarkdown(x.description)),
 		-- 	})
 		-- end)),
-	})))
+	})
 
 	doc = doc:walk({
 		---Manually writes link to remove \nolinkurl from the output. With the
@@ -265,15 +271,34 @@ function Writer(doc, opts)
 			if link.title ~= "" then
 				log.Warning("link title is not supported", getSource(link.attr))
 			end
-			return pandoc.Inlines(fun.Flatten({
-				toTex([[\href]]),
-				toTex([[{]]),
-				{ pandoc.Str(link.target) },
-				toTex([[}]]),
-				toTex([[{]]),
-				link.content,
-				toTex([[}]]),
-			}))
+			return pandoc.Inlines({
+				raw([[\href]]),
+				raw([[{]]),
+				pandoc.Str(link.target),
+				raw([[}]]),
+				raw([[{]]),
+				merge(link.content),
+				raw([[}]]),
+			})
+		end,
+	})
+
+	doc = doc:walk({
+		---@param div Div
+		---@return Div | Blocks
+		Div = function(div)
+			if div.attr.attributes["data-template--is-merge"] then
+				return div.content
+			end
+			return div
+		end,
+		---@param span Span
+		---@return Span | Inlines
+		Span = function(span)
+			if span.attr.attributes["data-template--is-merge"] then
+				return span.content
+			end
+			return span
 		end,
 	})
 
