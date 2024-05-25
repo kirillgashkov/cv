@@ -1,190 +1,188 @@
-local file = require("file")
-local log = require("log")
+local element = require("internal.element")
+local file = require("internal.file")
+local log = require("internal.log")
 
-assert(tostring(PANDOC_API_VERSION) == "1.23.1", "Unsupported Pandoc API")
+local md = element.Md
+local mdBlock = element.MdBlock
+local mergeBlock = element.MergeBlock
 
----@param s string
----@return Inlines
-local function parseInlineMarkdown(s)
-  return pandoc.utils.blocks_to_inlines(pandoc.read(s, "gfm").blocks)
+---@param name string
+---@param role string
+---@return Block
+local function makeNameAndRoleBlock(name, role)
+  return mergeBlock({
+    pandoc.Header(1, md(name)),
+    pandoc.Header(2, md(role)),
+  })
 end
 
----@param s string
----@return Blocks
-local function parseBlockMarkdown(s)
-  return pandoc.read(s, "gfm").blocks
+---@param contacts List<contact>
+---@return Block
+local function makeContactsBlock(contacts)
+  return pandoc.BulletList(contacts:map(function(contact)
+    return pandoc.Plain({ md(contact.name), pandoc.Str(": "), md(contact.description) })
+  end))
 end
 
-local function formatDate(year, month, day, formatString, config)
-  return formatString
-    :gsub("%%B", tostring(config.date_months[month]))
-    :gsub("%%e", tostring(day))
-    :gsub("%%Y", tostring(year))
+---@param skills List<skill>
+local function makeSkillsBlock(skills)
+  return pandoc.BulletList(skills:map(function(skill)
+    return pandoc.Plain({
+      pandoc.Strong({ md(skill.name), pandoc.Str(":") }),
+      pandoc.Str(" "),
+      md(skill.description),
+    })
+  end))
 end
 
----@param dateString string # Examples: 2020, 2020-01, 2020-01-01
----@param config any
-local function makeDate(dateString, config)
-  local year = nil
-  local month = nil
-  local day = nil
-  if #dateString == 4 then
-    year = dateString:match("(%d%d%d%d)")
-    year = tonumber(year)
-  elseif #dateString == 7 then
-    year, month = dateString:match("(%d%d%d%d)%-(%d%d)")
-    year, month = tonumber(year), tonumber(month)
-  elseif #dateString == 10 then
-    year, month, day = dateString:match("(%d%d%d%d)%-(%d%d)%-(%d%d)")
-    year, month, day = tonumber(year), tonumber(month), tonumber(day)
-  else
-    assert(false)
-  end
-
-  if year ~= nil and month ~= nil and day ~= nil then
-    return formatDate(year, month, day, config.date_formats.year_month_day, config)
-  elseif year ~= nil and month ~= nil then
-    return formatDate(year, month, nil, config.date_formats.year_month, config)
-  elseif year ~= nil then
-    return formatDate(year, nil, nil, config.date_formats.year, config)
-  else
-    assert(false)
-  end
+---@param i item
+---@return Block
+local function makeItemBlock(i)
+  return mergeBlock({
+    pandoc.Header(4, md(i.name)),
+    i.organization ~= nil and pandoc.Header(6, md(i.organization)) or mergeBlock({}),
+    i.started_in_finished_in ~= nil and pandoc.Header(6, md(i.started_in_finished_in)) or mergeBlock({}),
+    i.location ~= nil and pandoc.Header(6, md(i.location)) or mergeBlock({}),
+    mdBlock(i.description),
+  })
 end
 
----@param startDateString string
----@param endDateString? string
----@param config any
----@return string
-local function makeDateRange(startDateString, endDateString, config)
-  local start_date = makeDate(startDateString, config)
-  local end_date = endDateString and makeDate(endDateString, config) or config.date_present
-
-  if start_date == end_date then
-    return start_date
-  else
-    return start_date .. " - " .. end_date
-  end
+---@param items List<item>
+---@return Block
+local function makeItemsBlock(items)
+  return mergeBlock(items:map(function(e)
+    return makeItemBlock(e)
+  end) --[[@as List<any>]])
 end
 
----@param doc Pandoc
----@param opts WriterOptions
----@return string
-function Writer(doc, opts)
-  ---@type Cv
-  local cv =
-    pandoc.json.decode(file.Read(pandoc.path.join({ pandoc.path.directory(PANDOC_SCRIPT_FILE), "example.json" })))
-  local config = {
-    profile_header = "Profile",
-    skills_header = "Skills",
-    projects_header = "Projects",
-    education_header = "Education",
-    experience_header = "Experience",
-    date_present = "Present",
-    date_months = {
-      [1] = "January",
-      [2] = "February",
-      [3] = "March",
-      [4] = "April",
-      [5] = "May",
-      [6] = "June",
-      [7] = "July",
-      [8] = "August",
-      [9] = "September",
-      [10] = "October",
-      [11] = "November",
-      [12] = "December",
-    },
-    date_formats = {
-      year_month_day = "%B %e, %Y",
-      year_month = "%B %Y",
-      year = "%Y",
-    },
-  }
-
-  -- NOTE: Div and Span objects are used here to embed a list of Blocks or Inlines in the output.
-  -- An alternative solution of using table.unpack was considered but it seems that it isn't suited
-  -- for this case. It behaves differently from python's "...array". There is a different solution
-  -- of imperatively appending elements to a table but it seems that it is more verbose and less
-  -- readable.
-
-  -- NOTE: Div and Span objects are later stripped from the document by the walk function. If you
-  -- use need your own divs and spans, consider marking groupings with a class like ".internal" and
-  -- strip only those.
-
-  doc = pandoc.Pandoc(pandoc.Blocks({
-    pandoc.Header(1, parseInlineMarkdown(cv.name)),
-    pandoc.Header(2, parseInlineMarkdown(cv.role)),
-    pandoc.BulletList(cv.contacts:map(function(contact)
-      return pandoc.Plain({
-        pandoc.Span(parseInlineMarkdown(contact.name)),
-        pandoc.Str(": "),
-        pandoc.Span(parseInlineMarkdown(contact.description)),
-      })
-    end)),
-    pandoc.Header(3, parseInlineMarkdown(config.profile_header)),
-    pandoc.Div(parseBlockMarkdown(cv.profile)),
-    pandoc.Header(3, parseInlineMarkdown(config.skills_header)),
-    pandoc.BulletList(cv.skills:map(function(skill)
-      return pandoc.Plain({
-        pandoc.Strong({ pandoc.Span(parseInlineMarkdown(skill.name)), pandoc.Str(":") }),
-        pandoc.Str(" "),
-        pandoc.Span(parseInlineMarkdown(skill.description)),
-      })
-    end)),
-    pandoc.Header(3, parseInlineMarkdown(config.projects_header)),
-    pandoc.Div(cv.projects:map(function(project)
-      return pandoc.Div({
-        pandoc.Header(4, parseInlineMarkdown(project.name)),
-        pandoc.Header(6, parseInlineMarkdown(makeDateRange(project.started_in, project.finished_in, config))),
-        pandoc.Div(parseBlockMarkdown(project.description)),
-      })
-    end)),
-    pandoc.Header(3, parseInlineMarkdown(config.education_header)),
-    pandoc.Div(cv.education:map(function(x)
-      return pandoc.Div({
-        pandoc.Header(4, parseInlineMarkdown(x.name)),
-        pandoc.Header(6, parseInlineMarkdown(makeDateRange(x.started_in, x.finished_in, config))),
-        (x.organization ~= nil and pandoc.Header(6, parseInlineMarkdown(x.organization)) or pandoc.Div({})),
-        (x.suborganization ~= nil and pandoc.Header(6, parseInlineMarkdown(x.suborganization)) or pandoc.Div({})),
-        pandoc.Div(parseBlockMarkdown(x.description)),
-      })
-    end)),
-    pandoc.Header(3, parseInlineMarkdown(config.experience_header)),
-    pandoc.Div(cv.experience:map(function(x)
-      return pandoc.Div({
-        pandoc.Header(4, parseInlineMarkdown(x.name)),
-        pandoc.Header(6, parseInlineMarkdown(makeDateRange(x.started_in, x.finished_in, config))),
-        (x.organization ~= nil and pandoc.Header(6, parseInlineMarkdown(x.organization)) or pandoc.Div({})),
-        (x.suborganization ~= nil and pandoc.Header(6, parseInlineMarkdown(x.suborganization)) or pandoc.Div({})),
-        pandoc.Div(parseBlockMarkdown(x.description)),
-      })
-    end)),
-  }))
+---@param cv cv
+---@param config config
+---@return Pandoc
+local function makeCvDocument(cv, config)
+  local doc = pandoc.Pandoc({
+    -- Header
+    makeNameAndRoleBlock(cv.name, cv.role),
+    makeContactsBlock(cv.contacts),
+    -- Main
+    pandoc.Header(3, md(config.profile_header)),
+    mdBlock(cv.profile),
+    pandoc.Header(3, md(config.skills_header)),
+    makeSkillsBlock(cv.skills),
+    pandoc.Header(3, md(config.experience_header)),
+    makeItemsBlock(cv.experience),
+    pandoc.Header(3, md(config.projects_header)),
+    makeItemsBlock(cv.projects),
+    pandoc.Header(3, md(config.education_header)),
+    makeItemsBlock(cv.education),
+  })
 
   doc = doc:walk({
-    ---@param div Div
-    ---@return Blocks
-    Div = function(div)
-      return div.content
-    end,
-
-    ---@param span Span
-    ---@return Inlines
-    Span = function(span)
-      return span.content
+    ---Prevents Pandoc from messing up ordered lists. This was copied from the
+    ---LaTeX CV generator.
+    ---@param list OrderedList
+    ---@return OrderedList
+    OrderedList = function(list)
+      list.listAttributes = pandoc.ListAttributes(list.listAttributes.start, "DefaultStyle", "DefaultDelim")
+      return list
     end,
   })
 
-  return pandoc.write(doc, "gfm", opts)
+  -- Collapse merge blocks and inlines.
+  doc = doc:walk({
+    ---@param div Div
+    ---@return Div | Blocks
+    Div = function(div)
+      if element.IsMerge(div.attr) then
+        return div.content
+      end
+      return div
+    end,
+
+    ---@param span Span
+    ---@return Span | Inlines
+    Span = function(span)
+      if element.IsMerge(span.attr) then
+        return span.content
+      end
+      return span
+    end,
+  })
+
+  doc.meta.template = { i18n = { language = config.language } }
+
+  return doc
 end
 
----@return string
-function Template()
-  local template = file.Read(pandoc.path.join({ pandoc.path.directory(PANDOC_SCRIPT_FILE), "template.md" }))
-  assert(template, "Failed to read template file")
-  return template
+---@param path string
+---@return config
+local function makeConfig(path)
+  local fileContent = file.Read(path)
+  assert(fileContent ~= nil, "config file not found at " .. path)
+  return pandoc.json.decode(fileContent)
 end
 
----@type { [string]: boolean }
-Extensions = {}
+---@param scriptPath string
+---@return Template
+local function makeTemplate(scriptPath)
+  local templateFile = pandoc.path.join({ pandoc.path.directory(scriptPath), "template.md" })
+  local templateContent = file.Read(templateFile)
+  assert(templateContent ~= nil)
+  return pandoc.template.compile(templateContent)
+end
+
+---@param path string
+---@return cv
+local function makeCv(path)
+  local fileContent = file.Read(path)
+  assert(fileContent ~= nil, "cv file not found at " .. path)
+  return pandoc.json.decode(fileContent)
+end
+
+if arg ~= nil then
+  local expectedPandocApiVersion = "1.23.1"
+  if tostring(PANDOC_API_VERSION) ~= expectedPandocApiVersion then
+    log.Warning("Expected Pandoc API version " .. expectedPandocApiVersion .. ", got " .. tostring(PANDOC_API_VERSION))
+  end
+
+  local config = nil
+  local cv = nil
+
+  local configFile = nil
+  local cvFile = nil
+
+  local i = 1
+  while i <= #arg do
+    if arg[i] == "--config" then
+      configFile = arg[i + 1]
+      assert(configFile ~= nil)
+      config = makeConfig(configFile)
+      i = i + 2
+    elseif arg[i] == "-h" or arg[i] == "--help" then
+      io.stderr:write("Usage: " .. arg[0] .. " --config <config> <cv>\n")
+      os.exit(0)
+    elseif arg[i]:sub(1, 1) == "-" then
+      io.stderr:write("Error: unknown option: " .. arg[i] .. "\n")
+      os.exit(2)
+    else
+      if cvFile ~= nil then
+        io.stderr:write("Error: too many arguments\n")
+        os.exit(2)
+      end
+      cvFile = arg[i]
+      cv = makeCv(cvFile)
+      i = i + 1
+    end
+  end
+
+  if config == nil then
+    io.stderr:write("Error: missing config file\n")
+    os.exit(2)
+  end
+  if cv == nil then
+    io.stderr:write("Error: missing CV file\n")
+    os.exit(2)
+  end
+
+  local doc = makeCvDocument(cv, config)
+  io.stdout:write(pandoc.write(doc, "gfm", { template = makeTemplate(arg[0]) }))
+end

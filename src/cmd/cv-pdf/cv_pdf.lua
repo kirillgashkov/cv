@@ -1,5 +1,3 @@
-assert(tostring(PANDOC_API_VERSION) == "1.23.1", "Unsupported Pandoc API")
-
 local element = require("internal.element")
 local file = require("internal.file")
 local fun = require("internal.fun")
@@ -100,9 +98,8 @@ local function makeSkillsBlock(skills)
 end
 
 ---@param i item
----@param config config
 ---@return Block
-local function makeItemBlock(i, config)
+local function makeItemBlock(i)
   -- stylua: ignore
 	return mergeBlock({
     pandoc.Plain({
@@ -140,10 +137,21 @@ local function makeItemBlock(i, config)
   })
 end
 
+---@param items List<item>
+---@return Block
+local function makeItemsBlock(items)
+  return mergeBlock(fun.Intersperse(
+    items:map(function(e)
+      return makeItemBlock(e)
+    end) --[[@as List<any>]],
+    pandoc.Plain({ raw([[\vspace{0.5em}]]) })
+  ))
+end
+
 ---@param cv cv
 ---@param config config
 ---@return Pandoc
-local function makeCvBlock(cv, config)
+local function makeCvDocument(cv, config)
   local doc = pandoc.Pandoc({
     -- Header
     makeNameAndRoleBlock(cv.name, cv.role),
@@ -155,26 +163,11 @@ local function makeCvBlock(cv, config)
     pandoc.Header(1, md(config.skills_header)),
     makeSkillsBlock(cv.skills),
     pandoc.Header(1, md(config.experience_header)),
-    mergeBlock(fun.Intersperse(
-      cv.experience:map(function(e)
-        return makeItemBlock(e, config)
-      end) --[[@as List<any>]],
-      pandoc.Plain({ raw([[\vspace{0.5em}]]) })
-    )),
+    makeItemsBlock(cv.experience),
     pandoc.Header(1, md(config.projects_header)),
-    mergeBlock(fun.Intersperse(
-      cv.projects:map(function(e)
-        return makeItemBlock(e, config)
-      end) --[[@as List<any>]],
-      pandoc.Plain({ raw([[\vspace{0.5em}]]) })
-    )),
+    makeItemsBlock(cv.projects),
     pandoc.Header(1, md(config.education_header)),
-    mergeBlock(fun.Intersperse(
-      cv.education:map(function(e)
-        return makeItemBlock(e, config)
-      end) --[[@as List<any>]],
-      pandoc.Plain({ raw([[\vspace{0.5em}]]) })
-    )),
+    makeItemsBlock(cv.education),
   })
 
   doc = doc:walk({
@@ -259,6 +252,11 @@ local function makeCv(path)
 end
 
 if arg ~= nil then
+  local expectedPandocApiVersion = "1.23.1"
+  if tostring(PANDOC_API_VERSION) ~= expectedPandocApiVersion then
+    log.Warning("Expected Pandoc API version " .. expectedPandocApiVersion .. ", got " .. tostring(PANDOC_API_VERSION))
+  end
+
   local config = nil
   local cv = nil
 
@@ -298,6 +296,6 @@ if arg ~= nil then
     os.exit(2)
   end
 
-  local doc = makeCvBlock(cv, config)
+  local doc = makeCvDocument(cv, config)
   io.stdout:write(pandoc.write(doc, "latex", { template = makeTemplate(arg[0]) }))
 end
