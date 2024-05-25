@@ -119,7 +119,7 @@ local Pandoc = {}
 ---@param lua_filter table
 ---@return Pandoc
 function Pandoc:walk(lua_filter) end
----@class Meta
+---@alias Meta table
 
 ---@class Block
 local Block = {}
