@@ -17,11 +17,11 @@
 ---@field name string
 ---@field role string
 ---@field profile string
----@field contacts contact[]
----@field skills skill[]
----@field experience experience[]
----@field projects project[]
----@field education education[]
+---@field contacts List<contact>
+---@field skills List<skill>
+---@field experience List<experience>
+---@field projects List<project>
+---@field education List<education>
 
 ---@class contact
 ---@field name string
