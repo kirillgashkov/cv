@@ -1,118 +1,20 @@
-local file = require("file")
-local fun = require("fun")
-local log = require("log")
-
 assert(tostring(PANDOC_API_VERSION) == "1.23.1", "Unsupported Pandoc API")
 
-local mdFormat = "gfm-yaml_metadata_block"
+local date = require("internal.date")
+local file = require("internal.file")
+local element = require("internal.element")
+local fun = require("internal.fun")
+local log = require("internal.log")
 
----@param attr Attr
----@return string|nil
-local function getSource(attr)
-  return attr.attributes["data-pos"]
-end
-
----@param attr Attr
----@return boolean
-local function isMerge(attr)
-  return attr.attributes["data-template--is-merge"] == "1"
-end
-
----@param inlines Inlines
----@return Inline
-local function merge(inlines)
-  local i = pandoc.Span(inlines)
-  i.attr.attributes["data-template--is-merge"] = "1"
-  return i
-end
-
----@param blocks Blocks
----@return Block
-local function mergeBlock(blocks)
-  local b = pandoc.Div(blocks)
-  b.attr.attributes["data-template--is-merge"] = "1"
-  return b
-end
+local merge = element.Merge
+local mergeBlock = element.MergeBlock
+local md = element.Md
+local mdBlock = element.MdBlock
 
 ---@param s string
 ---@return Inline
-local function raw(s)
-  return merge(pandoc.Inlines({ pandoc.RawInline("latex", s) }))
-end
-
----@param s string
----@return Inline
-local function str(s)
-  return pandoc.Str(s)
-end
-
----@return Inline
-local function space()
-  return pandoc.Space()
-end
-
----@param s string
----@return Inline
-local function md(s)
-  return merge(pandoc.utils.blocks_to_inlines(pandoc.read(s, "gfm").blocks))
-end
-
----@param s string
----@return Block
-local function mdBlock(s)
-  return mergeBlock(pandoc.read(s, mdFormat).blocks)
-end
-
-local function formatDate(year, month, day, formatString, config)
-  return formatString
-    :gsub("%%B", tostring(config.date_months[month]))
-    :gsub("%%e", tostring(day))
-    :gsub("%%Y", tostring(year))
-end
-
----@param dateString string # Examples: 2020, 2020-01, 2020-01-01
----@param config any
-local function makeDate(dateString, config)
-  local year = nil
-  local month = nil
-  local day = nil
-  if #dateString == 4 then
-    year = dateString:match("(%d%d%d%d)")
-    year = tonumber(year)
-  elseif #dateString == 7 then
-    year, month = dateString:match("(%d%d%d%d)%-(%d%d)")
-    year, month = tonumber(year), tonumber(month)
-  elseif #dateString == 10 then
-    year, month, day = dateString:match("(%d%d%d%d)%-(%d%d)%-(%d%d)")
-    year, month, day = tonumber(year), tonumber(month), tonumber(day)
-  else
-    assert(false)
-  end
-
-  if year ~= nil and month ~= nil and day ~= nil then
-    return formatDate(year, month, day, config.date_formats.year_month_day, config)
-  elseif year ~= nil and month ~= nil then
-    return formatDate(year, month, nil, config.date_formats.year_month, config)
-  elseif year ~= nil then
-    return formatDate(year, nil, nil, config.date_formats.year, config)
-  else
-    assert(false)
-  end
-end
-
----@param startDateString string
----@param endDateString? string
----@param config any
----@return string
-local function makeDateRange(startDateString, endDateString, config)
-  local start_date = makeDate(startDateString, config)
-  local end_date = endDateString and makeDate(endDateString, config) or config.date_present
-
-  if start_date == end_date then
-    return start_date
-  else
-    return start_date .. " — " .. end_date
-  end
+local raw = function(s)
+  return pandoc.RawInline("latex", s)
 end
 
 ---@param name string
@@ -139,6 +41,7 @@ local function makeContactsBlock(contacts)
   ---@type List<List<Inline>>
   local t = pandoc.List({})
   for _ = 1, rowCount do
+    ---@type List<Inline>
     local r = pandoc.List({})
     for _ = 1, colCount do
       r:insert({})
@@ -188,11 +91,11 @@ local function makeSkillsBlock(skills)
       return merge({
         raw([[\item]]),
         pandoc.Strong({ md(s.name), pandoc.Str(":") }),
-        space(),
+        pandoc.Space(),
         pandoc.Span(md(s.description)),
         raw("\n"),
       })
-    end)),
+    end) --[[@as List<any>]]),
     merge({ raw([[\end{itemize}]]), raw("\n") }),
   })
 end
@@ -210,21 +113,21 @@ local function makeItemBlock(i, config)
       merge({
         merge({
           raw([[    ]]),
-          pandoc.Strong(i.organization ~= nil and { md(i.name), space(), str(config.experience_at), space(), md(i.organization) } or { md(i.name) }),
-          space(),
+          pandoc.Strong(i.organization ~= nil and { md(i.name), pandoc.Space(), pandoc.Str(config.experience_at), pandoc.Space(), md(i.organization) } or { md(i.name) }),
+          pandoc.Space(),
           raw("&"),
-          space(),
-          (i.started_in ~= nil or i.finished_in ~= nil) and merge({ str(makeDateRange(i.started_in, i.finished_in, config)) }) or merge({}),
+          pandoc.Space(),
+          (i.started_in ~= nil or i.finished_in ~= nil) and merge({ pandoc.Str(date.MakeDateRange(i.started_in, i.finished_in, config)) }) or merge({}),
         }),
         (i.suborganization or i.location) and merge({
-          space(),
+          pandoc.Space(),
           raw([[\\]]),
           raw("\n"),
           raw([[    ]]),
           i.suborganization ~= nil and merge({ md(i.suborganization) }) or merge({}),
-          space(),
+          pandoc.Space(),
           raw("&"),
-          space(),
+          pandoc.Space(),
           i.location ~= nil and merge({ md(i.location) }) or merge({}),
         }) or merge({}),
         merge({ raw("\n") }),
@@ -252,18 +155,18 @@ local function makeCvBlock(cv, config)
     mdBlock(cv.profile),
     pandoc.Header(1, md(config.skills_header)),
     makeSkillsBlock(cv.skills),
-    pandoc.Header(1, md(config.projects_header)),
-    mergeBlock(cv.projects:map(function(p)
-      return makeItemBlock(p, config)
-    end)),
     pandoc.Header(1, md(config.experience_header)),
     mergeBlock(cv.experience:map(function(e)
       return makeItemBlock(e, config)
-    end)),
+    end) --[[@as List<any>]]),
+    pandoc.Header(1, md(config.projects_header)),
+    mergeBlock(cv.projects:map(function(p)
+      return makeItemBlock(p, config)
+    end) --[[@as List<any>]]),
     pandoc.Header(1, md(config.education_header)),
     mergeBlock(cv.education:map(function(e)
       return makeItemBlock(e, config)
-    end)),
+    end) --[[@as List<any>]]),
   })
 
   doc = doc:walk({
@@ -273,12 +176,12 @@ local function makeCvBlock(cv, config)
     ---@return Inlines
     Link = function(link)
       if link.title ~= "" then
-        log.Warning("link title is not supported", getSource(link.attr))
+        log.Warning("link title is not supported")
       end
       return {
         raw([[\href]]),
         raw([[{]]),
-        str(link.target),
+        pandoc.Str(link.target),
         raw([[}]]),
         raw([[{]]),
         merge(link.content),
@@ -301,7 +204,7 @@ local function makeCvBlock(cv, config)
     ---@param div Div
     ---@return Div | Blocks
     Div = function(div)
-      if isMerge(div.attr) then
+      if element.IsMerge(div.attr) then
         return div.content
       end
       return div
@@ -310,7 +213,7 @@ local function makeCvBlock(cv, config)
     ---@param span Span
     ---@return Span | Inlines
     Span = function(span)
-      if isMerge(span.attr) then
+      if element.IsMerge(span.attr) then
         return span.content
       end
       return span
@@ -325,13 +228,14 @@ end
 ---@param path string
 ---@return config
 local function makeConfig(path)
-  return pandoc.json.decode(file.Read(path))
+  local fileContent = file.Read(path)
+  assert(fileContent ~= nil, "config file not found at " .. path)
+  return pandoc.json.decode(fileContent)
 end
 
 ---@param scriptPath string
 ---@return Template
 local function makeTemplate(scriptPath)
-  print(PANDOC_SCRIPT_FILE)
   local templateFile = pandoc.path.join({ pandoc.path.directory(scriptPath), "template.tex" })
   local templateContent = file.Read(templateFile)
   assert(templateContent ~= nil)
@@ -341,7 +245,9 @@ end
 ---@param path string
 ---@return cv
 local function makeCv(path)
-  return pandoc.json.decode(file.Read(path))
+  local fileContent = file.Read(path)
+  assert(fileContent ~= nil, "cv file not found at " .. path)
+  return pandoc.json.decode(fileContent)
 end
 
 if arg ~= nil then
@@ -385,5 +291,5 @@ if arg ~= nil then
   end
 
   local doc = makeCvBlock(cv, config)
-  print(pandoc.write(doc, "latex", { template = makeTemplate(arg[0]) }))
+  io.stdout:write(pandoc.write(doc, "latex", { template = makeTemplate(arg[0]) }))
 end
