@@ -1,15 +1,14 @@
 assert(tostring(PANDOC_API_VERSION) == "1.23.1", "Unsupported Pandoc API")
 
-local date = require("internal.date")
-local file = require("internal.file")
 local element = require("internal.element")
+local file = require("internal.file")
 local fun = require("internal.fun")
 local log = require("internal.log")
 
-local merge = element.Merge
-local mergeBlock = element.MergeBlock
 local md = element.Md
 local mdBlock = element.MdBlock
+local merge = element.Merge
+local mergeBlock = element.MergeBlock
 
 ---@param s string
 ---@return Inline
