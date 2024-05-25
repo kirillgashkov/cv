@@ -113,18 +113,18 @@ local function makeItemBlock(i, config)
       merge({
         merge({
           raw([[    ]]),
-          pandoc.Strong(i.organization ~= nil and { md(i.name), pandoc.Space(), pandoc.Str(config.experience_at), pandoc.Space(), md(i.organization) } or { md(i.name) }),
+          pandoc.Strong({ md(i.name) }),
           pandoc.Space(),
           raw("&"),
           pandoc.Space(),
-          (i.started_in ~= nil or i.finished_in ~= nil) and merge({ pandoc.Str(date.MakeDateRange(i.started_in, i.finished_in, config)) }) or merge({}),
+          (i.started_in_finished_in ~= nil) and merge({ pandoc.Str(i.started_in_finished_in) }) or merge({}),
         }),
-        (i.suborganization or i.location) and merge({
+        (i.organization or i.location) and merge({
           pandoc.Space(),
           raw([[\\]]),
           raw("\n"),
           raw([[    ]]),
-          i.suborganization ~= nil and merge({ md(i.suborganization) }) or merge({}),
+          i.organization ~= nil and merge({ md(i.organization) }) or merge({}),
           pandoc.Space(),
           raw("&"),
           pandoc.Space(),
@@ -156,17 +156,26 @@ local function makeCvBlock(cv, config)
     pandoc.Header(1, md(config.skills_header)),
     makeSkillsBlock(cv.skills),
     pandoc.Header(1, md(config.experience_header)),
-    mergeBlock(cv.experience:map(function(e)
-      return makeItemBlock(e, config)
-    end) --[[@as List<any>]]),
+    mergeBlock(fun.Intersperse(
+      cv.experience:map(function(e)
+        return makeItemBlock(e, config)
+      end) --[[@as List<any>]],
+      pandoc.Plain({ raw([[\vspace{0.5em}]]) })
+    )),
     pandoc.Header(1, md(config.projects_header)),
-    mergeBlock(cv.projects:map(function(p)
-      return makeItemBlock(p, config)
-    end) --[[@as List<any>]]),
+    mergeBlock(fun.Intersperse(
+      cv.projects:map(function(e)
+        return makeItemBlock(e, config)
+      end) --[[@as List<any>]],
+      pandoc.Plain({ raw([[\vspace{0.5em}]]) })
+    )),
     pandoc.Header(1, md(config.education_header)),
-    mergeBlock(cv.education:map(function(e)
-      return makeItemBlock(e, config)
-    end) --[[@as List<any>]]),
+    mergeBlock(fun.Intersperse(
+      cv.education:map(function(e)
+        return makeItemBlock(e, config)
+      end) --[[@as List<any>]],
+      pandoc.Plain({ raw([[\vspace{0.5em}]]) })
+    )),
   })
 
   doc = doc:walk({

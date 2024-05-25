@@ -34,25 +34,22 @@
 ---@class project
 ---@field name string
 ---@field description string
----@field started_in string
----@field finished_in? string
+---@field organization? string | nil
+---@field started_in_finished_in? string | nil
+---@field location? string | nil
 
 ---@class education
 ---@field name string
 ---@field description string
----@field organization string
----@field suborganization string
----@field location string
----@field started_in string
----@field finished_in? string
+---@field organization? string | nil
+---@field started_in_finished_in? string | nil
+---@field location? string | nil
 
 ---@class experience
 ---@field name string
 ---@field description string
----@field organization string
----@field suborganization string
----@field location string
----@field started_in string
----@field finished_in? string
+---@field organization? string | nil
+---@field started_in_finished_in? string | nil
+---@field location? string | nil
 
 ---@alias item contact | skill | project | education | experience
