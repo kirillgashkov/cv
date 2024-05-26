@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 set -e
 
@@ -84,10 +84,20 @@ yq -p toml -o json "$cv" \
   > "$cv_json"
 
 
+# Get the directory of the script regardless of whether it was a symlink or not.
+
+scriptdir=""
+scriptfile="${BASH_SOURCE[0]}"
+while [ -L "$scriptfile" ]; do
+  scriptdir="$( cd -P "$( dirname "$scriptfile" )" >/dev/null 2>&1 && pwd )"
+  scriptfile="$(readlink "$scriptfile")"
+  [[ "$scriptfile" != /* ]] && scriptfile="$scriptdir/$scriptfile"
+done
+scriptdir="$( cd -P "$( dirname "$scriptfile" )" >/dev/null 2>&1 && pwd )"
+
+
 # Build Markdown and PDF CVs using Pandoc Lua scripts and Latexmk. Scripts can
 # only understand JSON, so that's what we are feeding them.
-
-scriptdir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
 
 cv_md="$tempdir/cv.md"
 cv_tex="$tempdir/cv.tex"
@@ -101,5 +111,6 @@ latexmk -quiet -xelatex -interaction=nonstopmode -halt-on-error -file-line-error
 
 # Move the built Markdown and PDF to the output directory.
 
+mkdir -p "$output"
 mv "$cv_md" "$output/$(basename -- "$cv" .toml).md"
 mv "$cv_pdf" "$output/$(basename -- "$cv" .toml).pdf"
