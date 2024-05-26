@@ -158,16 +158,38 @@ local function makeCvDocument(cv, config)
     pandoc.Plain({ raw([[\vspace{1em}]]) }),
     makeContactsBlock(cv.contacts),
     -- Main
-    pandoc.Header(1, md(config.profile_header)),
-    mdBlock(cv.profile),
-    pandoc.Header(1, md(config.skills_header)),
-    makeSkillsBlock(cv.skills),
-    pandoc.Header(1, md(config.experience_header)),
-    makeItemsBlock(cv.experience),
-    pandoc.Header(1, md(config.projects_header)),
-    makeItemsBlock(cv.projects),
-    pandoc.Header(1, md(config.education_header)),
-    makeItemsBlock(cv.education),
+
+    mergeBlock(config.sections:map(function(s)
+      if s.name == "profile" then
+        return mergeBlock({
+          pandoc.Header(1, md(s.header)),
+          mdBlock(cv.profile),
+        })
+      elseif s.name == "skills" then
+        return mergeBlock({
+          pandoc.Header(1, md(s.header)),
+          makeSkillsBlock(cv.skills),
+        })
+      elseif s.name == "experience" then
+        return mergeBlock({
+          pandoc.Header(1, md(s.header)),
+          makeItemsBlock(cv.experience),
+        })
+      elseif s.name == "projects" then
+        return mergeBlock({
+          pandoc.Header(1, md(s.header)),
+          makeItemsBlock(cv.projects),
+        })
+      elseif s.name == "education" then
+        return mergeBlock({
+          pandoc.Header(1, md(s.header)),
+          makeItemsBlock(cv.education),
+        })
+      else
+        log.Error("unrecognized section in config: " .. s.name)
+        assert(false)
+      end
+    end) --[[@as any]]),
   })
 
   doc = doc:walk({
@@ -221,7 +243,7 @@ local function makeCvDocument(cv, config)
     end,
   })
 
-  doc.meta.template = { i18n = { language = config.language } }
+  doc.meta.template = { i18n = { language = config.babel_language } }
 
   return doc
 end

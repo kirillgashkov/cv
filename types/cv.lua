@@ -1,12 +1,12 @@
 ---@meta
 
 ---@class config
----@field language string
----@field profile_header string
----@field skills_header string
----@field experience_header string
----@field projects_header string
----@field education_header string
+---@field babel_language string
+---@field sections List<sectionConfig>
+
+---@class sectionConfig
+---@field name "profile" | "skills" | "experience" | "projects" | "education"
+---@field header string
 
 ---@class cv
 ---@field updated_in string
