@@ -168,22 +168,22 @@ local function makeCvDocument(cv, config)
 			elseif s.name == "skills" then
 				return mergeBlock({
 					pandoc.Header(1, md(s.header)),
-					makeSkillsBlock(cv.skills),
+					-- makeSkillsBlock(cv.skills),
 				})
 			elseif s.name == "experience" then
 				return mergeBlock({
 					pandoc.Header(1, md(s.header)),
-					makeItemsBlock(cv.experience),
+					-- makeItemsBlock(cv.experience),
 				})
 			elseif s.name == "projects" then
 				return mergeBlock({
 					pandoc.Header(1, md(s.header)),
-					makeItemsBlock(cv.projects),
+					-- makeItemsBlock(cv.projects),
 				})
 			elseif s.name == "education" then
 				return mergeBlock({
 					pandoc.Header(1, md(s.header)),
-					makeItemsBlock(cv.education),
+					-- makeItemsBlock(cv.education),
 				})
 			else
 				log.Error("unrecognized section in config: " .. s.name)
