@@ -97,9 +97,39 @@ local function makeSkillsBlock(skills)
 	})
 end
 
----@param i item
+---@param updated_in string | nil
+---@param config config
+---@return Inline
+local function makeUpdatedIn(updated_in, config)
+	local key = tostring(updated_in)
+	local t = config.updated_ins[key]
+	if t == nil then
+		log.Error("missing config.updated_ins for " .. key)
+		assert(false)
+	end
+	assert(type(t) == "string")
+	return md(t)
+end
+
+---@param started_in string | nil
+---@param finished_in string | nil
+---@param config config
+---@return Inline
+local function makeStartedInFinishedIn(started_in, finished_in, config)
+	local key = tostring(started_in) .. "," .. tostring(finished_in)
+	local t = config.started_in_finished_ins[key]
+	if t == nil then
+		log.Error("missing config.started_in_finished_ins for " .. key)
+		assert(false)
+	end
+	assert(type(t) == "string")
+	return md(t)
+end
+
+---@param e experience
+---@param config config
 ---@return Block
-local function makeItemBlock(i)
+local function makeExperienceBlock(e, config)
 	-- stylua: ignore
 	return mergeBlock({
 		pandoc.Plain({
@@ -109,22 +139,23 @@ local function makeItemBlock(i)
 			merge({
 				merge({
 					raw([[    ]]),
-					pandoc.Strong({ md(i.name) }),
+					pandoc.Strong({ md(e.name) }),
+					e.tagline and merge({ pandoc.Space(), md("—"), pandoc.Space(), md(e.tagline) }) or merge({}),
 					pandoc.Space(),
 					raw("&"),
 					pandoc.Space(),
-					(i.started_in_finished_in ~= nil) and merge({ pandoc.Str(i.started_in_finished_in) }) or merge({}),
+					(e.started_in ~= nil or e.finished_in ~= nil) and merge({ makeStartedInFinishedIn(e.started_in, e.finished_in, config) }) or merge({}),
 				}),
-				(i.organization or i.location) and merge({
+				(e.organization or e.location) and merge({
 					pandoc.Space(),
 					raw([[\\]]),
 					raw("\n"),
 					raw([[    ]]),
-					i.organization ~= nil and merge({ md(i.organization) }) or merge({}),
+					e.organization ~= nil and merge({ md(e.organization) }) or merge({}),
 					pandoc.Space(),
 					raw("&"),
 					pandoc.Space(),
-					i.location ~= nil and merge({ md(i.location) }) or merge({}),
+					e.location ~= nil and merge({ md(e.location) }) or merge({}),
 				}) or merge({}),
 				merge({ raw("\n") }),
 			}),
@@ -133,16 +164,17 @@ local function makeItemBlock(i)
 			merge({ raw([[}]]), raw("\n") }),
 		}),
 		pandoc.Plain({ raw([[\vspace{0.5em}]]) }),
-		mdBlock(i.description)
+		mdBlock(e.description)
 	})
 end
 
----@param items List<item>
+---@param experiences List<experience>
+---@param config config
 ---@return Block
-local function makeItemsBlock(items)
+local function makeExperiencesBlock(experiences, config)
 	return mergeBlock(fun.Intersperse(
-		items:map(function(e)
-			return makeItemBlock(e)
+		experiences:map(function(e)
+			return makeExperienceBlock(e, config)
 		end) --[[@as List<any>]],
 		pandoc.Plain({ raw([[\vspace{0.5em}]]) })
 	))
@@ -152,43 +184,46 @@ end
 ---@param config config
 ---@return Pandoc
 local function makeCvDocument(cv, config)
+	---@type List<string>
+	local types = pandoc.List({})
+	---@type { [string]: List<experience> }
+	local typeToExperiences = {}
+	for _, e in ipairs(cv.experiences) do
+		if typeToExperiences[e.type] == nil then
+			types:insert(e.type)
+			typeToExperiences[e.type] = pandoc.List({})
+		end
+		typeToExperiences[e.type]:insert(e)
+	end
+	---@type List<{ type: string, experiences: List<experience> }>
+	local experienceGroups = pandoc.List({})
+	for _, t in ipairs(types) do
+		experienceGroups:insert({ type = t, experiences = typeToExperiences[t] })
+	end
+
 	local doc = pandoc.Pandoc({
 		-- Header
 		makeNameAndRoleBlock(cv.name, cv.role),
 		pandoc.Plain({ raw([[\vspace{1em}]]) }),
 		makeContactsBlock(cv.contacts),
-		-- Main
-
-		mergeBlock(config.sections:map(function(s)
-			if s.name == "profile" then
-				return mergeBlock({
-					pandoc.Header(1, md(s.header)),
-					mdBlock(cv.profile),
-				})
-			elseif s.name == "skills" then
-				return mergeBlock({
-					pandoc.Header(1, md(s.header)),
-					-- makeSkillsBlock(cv.skills),
-				})
-			elseif s.name == "experience" then
-				return mergeBlock({
-					pandoc.Header(1, md(s.header)),
-					-- makeItemsBlock(cv.experience),
-				})
-			elseif s.name == "projects" then
-				return mergeBlock({
-					pandoc.Header(1, md(s.header)),
-					-- makeItemsBlock(cv.projects),
-				})
-			elseif s.name == "education" then
-				return mergeBlock({
-					pandoc.Header(1, md(s.header)),
-					-- makeItemsBlock(cv.education),
-				})
-			else
-				log.Error("unrecognized section in config: " .. s.name)
+		-- Profile
+		pandoc.Header(1, md(config.profile_heading)),
+		mdBlock(cv.profile),
+		-- Skills
+		pandoc.Header(1, md(config.skills_heading)),
+		-- makeSkillsBlock(cv.skills),
+		-- Experiences
+		mergeBlock(experienceGroups:map(function(g)
+			local h = config.experiences_headings[g.type]
+			if h == nil then
+				log.Error("missing config.experiences_headings for " .. g.type)
 				assert(false)
 			end
+			assert(type(h) == "string")
+			return mergeBlock({
+				pandoc.Header(1, md(h)),
+				makeExperiencesBlock(g.experiences, config),
+			})
 		end) --[[@as any]]),
 	})
 
