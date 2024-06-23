@@ -60,8 +60,8 @@ fi
 
 # Create a temporary working directory.
 
-tempdir="$(mktemp -d)"
-on_exit() { rm -rf -- "$tempdir"; }
+tempdir="$PWD/.cv"; mkdir -p "$PWD/.cv"
+on_exit() { :; }
 trap 'on_exit' EXIT
 trap 'on_exit; trap - TERM; kill -TERM "$$"' TERM
 trap 'on_exit; trap - INT; kill -INT "$$"' INT
