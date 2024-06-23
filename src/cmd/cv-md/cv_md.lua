@@ -35,7 +35,7 @@ local function makeSkillsBlock(skills)
 	end))
 end
 
----@param i item
+---@param i experience
 ---@return Block
 local function makeItemBlock(i)
 	return mergeBlock({
@@ -47,7 +47,7 @@ local function makeItemBlock(i)
 	})
 end
 
----@param items List<item>
+---@param items List<experience>
 ---@return Block
 local function makeItemsBlock(items)
 	return mergeBlock(items:map(function(e)
@@ -64,37 +64,37 @@ local function makeCvDocument(cv, config)
 		makeNameAndRoleBlock(cv.name, cv.role),
 		makeContactsBlock(cv.contacts),
 		-- Main
-		mergeBlock(config.sections:map(function(s)
-			if s.name == "profile" then
-				return mergeBlock({
-					pandoc.Header(3, md(s.header)),
-					mdBlock(cv.profile),
-				})
-			elseif s.name == "skills" then
-				return mergeBlock({
-					pandoc.Header(3, md(s.header)),
-					-- makeSkillsBlock(cv.skills),
-				})
-			elseif s.name == "experience" then
-				return mergeBlock({
-					pandoc.Header(3, md(s.header)),
-					-- makeItemsBlock(cv.experience),
-				})
-			elseif s.name == "projects" then
-				return mergeBlock({
-					pandoc.Header(3, md(s.header)),
-					-- makeItemsBlock(cv.projects),
-				})
-			elseif s.name == "education" then
-				return mergeBlock({
-					pandoc.Header(3, md(s.header)),
-					-- makeItemsBlock(cv.education),
-				})
-			else
-				log.Error("unrecognized section in config: " .. s.name)
-				assert(false)
-			end
-		end) --[[@as any]]),
+		-- mergeBlock(config.sections:map(function(s)
+		-- 	if s.name == "profile" then
+		-- 		return mergeBlock({
+		-- 			pandoc.Header(3, md(s.header)),
+		-- 			mdBlock(cv.profile),
+		-- 		})
+		-- 	elseif s.name == "skills" then
+		-- 		return mergeBlock({
+		-- 			pandoc.Header(3, md(s.header)),
+		-- 			-- makeSkillsBlock(cv.skills),
+		-- 		})
+		-- 	elseif s.name == "experience" then
+		-- 		return mergeBlock({
+		-- 			pandoc.Header(3, md(s.header)),
+		-- 			-- makeItemsBlock(cv.experience),
+		-- 		})
+		-- 	elseif s.name == "projects" then
+		-- 		return mergeBlock({
+		-- 			pandoc.Header(3, md(s.header)),
+		-- 			-- makeItemsBlock(cv.projects),
+		-- 		})
+		-- 	elseif s.name == "education" then
+		-- 		return mergeBlock({
+		-- 			pandoc.Header(3, md(s.header)),
+		-- 			-- makeItemsBlock(cv.education),
+		-- 		})
+		-- 	else
+		-- 		log.Error("unrecognized section in config: " .. s.name)
+		-- 		assert(false)
+		-- 	end
+		-- end) --[[@as any]]),
 	})
 
 	doc = doc:walk({
