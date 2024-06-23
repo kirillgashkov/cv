@@ -14,12 +14,80 @@ local raw = function(s)
 	return pandoc.RawInline("latex", s)
 end
 
+---@param v number
+---@return Inline
+local function makeNumberLatex(v)
+  return raw(tostring(string.format("%.4f", v):gsub("%.?0+$", "")))
+end
+
 ---@param name string
 ---@param role string
 ---@param contacts List<contact>
+---@param config config
 ---@return Block
-local function makeNameRoleContactsBlock(name, role, contacts)
-	return mergeBlock({})
+local function makeNameRoleContactsBlock(name, role, contacts, config)
+	local nameAndRoleInline = merge({
+		merge({ raw([[{\bfseries\scshape\huge ]]), md(name), raw([[}]]) }),
+		merge({ raw([[ \newline ]]) }),
+		merge({ raw([[{\scshape\large ]]), md(role), raw([[}]]) }),
+	})
+
+	---@type List<contact>
+	local firstContacts = pandoc.List({})
+	---@type List<contact>
+	local secondContacts = pandoc.List({})
+	for i, c in ipairs(contacts) do
+		if i <= math.ceil(#contacts / 2) then
+			firstContacts:insert(c)
+		else
+			secondContacts:insert(c)
+		end
+	end
+
+	---@param c contact
+	---@return Inline
+	local makeContact = function(c)
+		return merge({
+			merge({ md(c.name), md(":") }),
+			merge({ raw([[ ]]) }),
+			merge({ raw([[\texttt]]), raw([[{]]), md(c.description), raw([[}]]) }),
+		})
+	end
+	local firstContactsInline = merge(fun.Intersperse(
+		firstContacts:map(makeContact), raw([[ \newline ]])
+	))
+	local secondContactsInline = merge(fun.Intersperse(
+		secondContacts:map(makeContact), raw([[ \newline ]])
+	))
+
+	return pandoc.Plain({
+		merge({ raw([[{]]), raw("\n") }),
+		merge({ raw([[  \centering]]), raw("\n") }),
+		merge({
+			raw([[  \begin{tabular}{]]),
+			raw([[@{}]]),
+			merge({ raw([[m{]]), makeNumberLatex(config.header_colwidths[1]), raw([[\textwidth]]), raw([[}]]) }),
+			raw([[@{}]]),
+			merge({ raw([[m{]]), makeNumberLatex(config.header_colwidths[2]), raw([[\textwidth]]), raw([[}]]) }),
+			raw([[@{}]]),
+			merge({ raw([[m{]]), makeNumberLatex(config.header_colwidths[3]), raw([[\textwidth]]), raw([[}]]) }),
+			raw([[@{}]]),
+			raw([[}]]),
+			raw("\n"),
+		}),
+		merge({
+			raw([[    ]]),
+			nameAndRoleInline,
+			raw([[ & ]]),
+			firstContactsInline,
+			raw([[ & ]]),
+			secondContactsInline,
+			raw("\n"),
+		}),
+		merge({ raw([[  \end{tabular}]]), raw("\n") }),
+		merge({ raw([[  \par]]), raw("\n") }),
+		merge({ raw([[}]]), raw("\n") }),
+	})
 end
 
 ---@param name string
@@ -212,7 +280,7 @@ local function makeCvDocument(cv, config)
 
 	local doc = pandoc.Pandoc({
 		-- Header
-		makeNameRoleContactsBlock(cv.name, cv.role, cv.contacts),
+		makeNameRoleContactsBlock(cv.name, cv.role, cv.contacts, config),
 		-- Profile
 		pandoc.Header(1, md(config.profile_heading)),
 		mdBlock(cv.profile),

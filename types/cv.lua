@@ -2,6 +2,7 @@
 
 ---@class config
 ---@field babel_language string
+---@field header_colwidths { [1]: number, [2]: number, [3]: number }
 ---@field profile_heading string
 ---@field skills_heading string
 ---@field experiences_headings { [string]: string }
