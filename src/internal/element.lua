@@ -1,6 +1,6 @@
 local element = {}
 
-local mdFormat = "gfm-yaml_metadata_block"
+local mdFormat = "gfm-yaml_metadata_block+smart"
 
 ---@param attr Attr
 ---@return boolean
