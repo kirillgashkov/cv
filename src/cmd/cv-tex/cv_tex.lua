@@ -220,7 +220,7 @@ local function makeCvDocument(cv, config)
 		mdBlock(cv.profile),
 		-- Skills
 		pandoc.Header(1, md(config.skills_heading)),
-		-- makeSkillsBlock(cv.skills),
+		makeSkillsBlock(cv.skills),
 		-- Experiences
 		mergeBlock(experienceGroups:map(function(g)
 			local h = config.experiences_headings[g.type]
