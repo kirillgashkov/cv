@@ -16,6 +16,14 @@ end
 
 ---@param name string
 ---@param role string
+---@param contacts List<contact>
+---@return Block
+local function makeNameRoleContactsBlock(name, role, contacts)
+	return mergeBlock({})
+end
+
+---@param name string
+---@param role string
 ---@return Block
 local function makeNameAndRoleBlock(name, role)
 	return pandoc.Plain({
@@ -144,7 +152,8 @@ local function makeExperienceBlock(e, config)
 					pandoc.Space(),
 					raw("&"),
 					pandoc.Space(),
-					(e.started_in ~= nil or e.finished_in ~= nil) and merge({ makeStartedInFinishedIn(e.started_in, e.finished_in, config) }) or merge({}),
+					(e.started_in ~= nil or e.finished_in ~= nil) and
+					merge({ makeStartedInFinishedIn(e.started_in, e.finished_in, config) }) or merge({}),
 				}),
 				(e.organization or e.location) and merge({
 					pandoc.Space(),
@@ -203,9 +212,7 @@ local function makeCvDocument(cv, config)
 
 	local doc = pandoc.Pandoc({
 		-- Header
-		makeNameAndRoleBlock(cv.name, cv.role),
-		pandoc.Plain({ raw([[\vspace{1em}]]) }),
-		makeContactsBlock(cv.contacts),
+		makeNameRoleContactsBlock(cv.name, cv.role, cv.contacts),
 		-- Profile
 		pandoc.Header(1, md(config.profile_heading)),
 		mdBlock(cv.profile),
