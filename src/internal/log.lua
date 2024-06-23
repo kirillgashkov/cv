@@ -45,17 +45,37 @@ local function makeJsonLog(type, message, source, code)
 	return pandoc.json.encode(d)
 end
 
----@param type "panic" | "error" | "warning" | "note"
----@param message string
+local function dump(o)
+	if type(o) == "table" then
+		local s = "{ "
+		local i = 1
+		for k, v in pairs(o) do
+			if i ~= 1 then
+				s = s .. ", "
+			end
+			s = s .. "[" .. dump(k) .. "] = " .. dump(v)
+			i = i + 1
+		end
+		return s .. " }"
+	elseif type(o) == "string" then
+		return '"' .. o .. '"'
+	else
+		return tostring(o)
+	end
+end
+
+---@param logType "panic" | "error" | "warning" | "note"
+---@param message any
 ---@param source? string
 ---@param code? string|nil
-function log.message(type, message, source, code)
+function log.message(logType, message, source, code)
 	local s = ""
 
+	local m = type(message) == "string" and message or dump(message)
 	if log.Format == "text" then
-		s = makeTextLog(type, message, source, code)
+		s = makeTextLog(logType, m, source, code)
 	elseif log.Format == "json" then
-		s = makeJsonLog(type, message, source, code)
+		s = makeJsonLog(logType, m, source, code)
 	else
 		assert(false)
 	end
@@ -63,21 +83,21 @@ function log.message(type, message, source, code)
 	io.stderr:write(s .. "\n")
 end
 
----@param message string
+---@param message any
 ---@param source? string|nil
 ---@param code? string|nil
 function log.Error(message, source, code)
 	log.message("error", message, source, code)
 end
 
----@param message string
+---@param message any
 ---@param source? string|nil
 ---@param code? string|nil
 function log.Warning(message, source, code)
 	log.message("warning", message, source, code)
 end
 
----@param message string
+---@param message any
 ---@param source? string|nil
 ---@param code? string|nil
 function log.Note(message, source, code)
