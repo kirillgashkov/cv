@@ -287,6 +287,7 @@ local function makeCvDocument(cv, config)
 		end,
 	})
 
+	doc.meta.csquotes = true
 	doc.meta.template = { i18n = { language = config.babel_language } }
 
 	return doc
